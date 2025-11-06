@@ -74,9 +74,6 @@ class Record:
         self.birthday = None
 
     def add_phone(self, phone_number: str):
-        """
-        Додає телефон. Валідація в конструкторі Phone
-        """
         self.phones.append(Phone(phone_number))
 
     def remove_phone(self, phone_number: str):
@@ -103,12 +100,11 @@ class Record:
 
     def add_birthday(self, birthday_str: str):
         """
-        Валідація відбувається в конструкторі Birthday
+        Метод для додавання дня народження до запису
         """
         self.birthday = Birthday(birthday_str)
 
     def __str__(self):
-        # Оновлюємо __str__ для показу дня народження, якщо він є
         phone_list = "; ".join(p.value for p in self.phones)
         birthday_str = f", birthday: {self.birthday}" if self.birthday else ""
         return f"Contact name: {self.name.value}, phones: {phone_list}{birthday_str}"
@@ -132,17 +128,11 @@ class AddressBook(UserDict):
             raise KeyError(f"Contact '{name}' not found.")
 
     def get_upcoming_birthdays(self) -> list:
-        """
-        Повертає список користувачів, яких треба привітати
-        протягом наступних 7 днів
-        """
         today = date.today()
         upcoming_birthdays = []
-
         for record in self.data.values():
             if not record.birthday:
                 continue
-
             bday = record.birthday.value
             bday_this_year = bday.replace(year=today.year)
             if bday_this_year < today:
@@ -154,7 +144,6 @@ class AddressBook(UserDict):
                     day_to_congratulate = "Monday"
                 else:
                     day_to_congratulate = bday_this_year.strftime("%A")
-
                 upcoming_birthdays.append(
                     {
                         "name": record.name.value,
@@ -166,8 +155,7 @@ class AddressBook(UserDict):
 
 def input_error(func):
     """
-    Декоратор, який обробляє помилки вводу, що виникають у
-    функціях-обробниках (ValueError, KeyError, IndexError).
+    Декоратор
     """
 
     def inner(*args, **kwargs):
@@ -175,8 +163,8 @@ def input_error(func):
             return func(*args, **kwargs)
         except ValueError as e:
             return str(e)
-        except KeyError as e:
-            return f"Contact not found: {e}"
+        except (KeyError, AttributeError):
+            return "Contact not found."
         except IndexError:
             return "Not enough arguments. Please provide full info."
 
@@ -186,55 +174,49 @@ def input_error(func):
 @input_error
 def add_contact(args, book: AddressBook):
     """
-    Обробник команди "add"
+    Обробник команди add
     """
     name, phone, *_ = args
-
     record = book.find(name)
     message = "Contact updated."
-
     if record is None:
         record = Record(name)
         book.add_record(record)
         message = "Contact added."
-
     if phone:
         record.add_phone(phone)
-
     return message
 
 
 @input_error
 def change_contact(args, book: AddressBook):
     """
-    Обробник команди "change"
+    Обробник команди change
     """
     name, old_phone, new_phone = args
     record = book.find(name)
-    if record:
-        record.edit_phone(old_phone, new_phone)
-        return f"Contact '{name}' updated: {old_phone} -> {new_phone}."
-    else:
-        raise KeyError(name)
+    record.edit_phone(old_phone, new_phone)
+    return f"Contact '{name}' updated: {old_phone} -> {new_phone}."
 
 
 @input_error
 def show_phone(args, book: AddressBook):
     """
-    Обробник команди "phone"
+    Обробник команди phone
     """
     name = args[0]
     record = book.find(name)
-    if record:
 
-        return str(record)
+    if record.phones:
+        phone_list = "; ".join(p.value for p in record.phones)
+        return f"{name}'s phones: {phone_list}"
     else:
-        raise KeyError(name)
+        return f"Contact '{name}' exists but has no phones."
 
 
 def show_all(book: AddressBook):
     """
-    Обробник команди "all"
+    Обробник команди all
     """
     if not book.data:
         return "No contacts found."
@@ -244,37 +226,32 @@ def show_all(book: AddressBook):
 @input_error
 def add_birthday(args, book: AddressBook):
     """
-    Обробник команди "add-birthday"
+    Обробник команди add-birthday
     """
     name, bday_str = args
     record = book.find(name)
-    if record:
-        record.add_birthday(bday_str)
-        return "Birthday added."
-    else:
-        raise KeyError(name)
+    record.add_birthday(bday_str)
+    return "Birthday added."
 
 
 @input_error
 def show_birthday(args, book: AddressBook):
     """
-    Обробник команди "show-birthday"
+    Обробник команди show-birthday
     """
     name = args[0]
     record = book.find(name)
-    if record:
-        if record.birthday:
-            return str(record.birthday)
-        else:
-            return "Birthday not set for this contact."
+
+    if record.birthday:
+        return str(record.birthday)
     else:
-        raise KeyError(name)
+        return "Birthday not set for this contact."
 
 
 @input_error
 def birthdays(args, book: AddressBook):
     """
-    Обробник команди "birthdays"
+    Обробник команди birthdays
     """
     upcoming = book.get_upcoming_birthdays()
     if not upcoming:
@@ -288,7 +265,7 @@ def birthdays(args, book: AddressBook):
 
 def parse_input(user_input):
     """
-    Парсер команд (без змін).
+    Парсер команд
     """
     parts = user_input.split()
     if not parts:
